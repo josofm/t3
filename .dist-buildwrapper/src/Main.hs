@@ -25,7 +25,7 @@ main = do
         strcontent <- readFile infile
         let pairs = map (span (/= ' ')) (lines strcontent)
             freqs = readInts (map snd pairs)
-        writeFile outfile (svgCloudGen imageWidth imageHeight freqs)
+        writeFile outfile (svgCloudGen imageWidth imageHeight [1,10..100])
         putStrLn "Ok!"
         where 
                 infile = "dataset.txt"
@@ -50,7 +50,7 @@ svgCloudGen w h dataset =
 -- A implementacao atual eh apenas um teste que gera um circulo posicionado no meio da figura.
 -- TODO: Alterar essa funcao para usar os dados do dataset.
 svgBubbleGen:: Int -> Int -> [Int] -> [String]
-svgBubbleGen w h dataset = [svgCircle ((fromIntegral w/2, fromIntegral h/2), 10.0)]
+svgBubbleGen w h dataset = [svgCircle ((1.0*2.0*(cos 2.0),1.0*2.0*(sin 2.0)), 10.0)]
 
 
 -- Gera string representando um circulo em SVG. A cor do circulo esta fixa. 
@@ -65,3 +65,7 @@ svgViewBox w h =
         printf  "<svg width=\"%d\" height=\"%d\" viewBox=\"0 0 %d %d\"" w h w h ++ 
                 " version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n" ++
         printf "<rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" style=\"fill:white;\"/>\n" w h
+
+circleArea :: Circle -> Float
+circleArea (_,r) = pi*r^2
+
