@@ -6,7 +6,9 @@
 
 module Main where
 
-import Text.Printf -- Oba, Haskell tem printf! :-)
+import Text.Printf --
+import System.Random --random
+import System.IO.Unsafe 
 
 type Point     = (Float,Float)
 type Color     = (Int,Int,Int)
@@ -25,7 +27,8 @@ main = do
         strcontent <- readFile infile
         let pairs = map (span (/= ' ')) (lines strcontent)
             freqs = readInts (map snd pairs)
-        writeFile outfile (svgCloudGen imageWidth imageHeight [1,10..100])
+            tags = (map fst pairs)
+        writeFile outfile (svgCloudGen imageWidth imageHeight freqs)
         putStrLn "Ok!"
         where 
                 infile = "dataset.txt"
@@ -50,13 +53,23 @@ svgCloudGen w h dataset =
 -- A implementacao atual eh apenas um teste que gera um circulo posicionado no meio da figura.
 -- TODO: Alterar essa funcao para usar os dados do dataset.
 svgBubbleGen:: Int -> Int -> [Int] -> [String]
-svgBubbleGen w h dataset = [svgCircle ((1.0*2.0*(cos 2.0),1.0*2.0*(sin 2.0)), 10.0)]
+svgBubbleGen w h dataset = 
+                let 
+                raios = geraRaio dataset -- gera lista com raios (float)
+                pontos = geraPoints (fromIntegral w/2) (fromIntegral h/2) raios 0 -- gera pontos para a espiral
+                circulos = insereRaios raios -- gera circulos com x=180,y=180 e raio= freq/100
+                in map svgCircle (inserePoints pontos circulos)
 
 
 -- Gera string representando um circulo em SVG. A cor do circulo esta fixa. 
 -- TODO: Alterar esta funcao para mostrar um circulo de uma cor fornecida como parametro.
 svgCircle :: Circle -> String
-svgCircle ((x,y),r) = printf "<circle cx=\"%f\" cy=\"%f\" r=\"%f\" fill=\"rgb(255,0,0)\" />\n" x y r
+svgCircle ((x,y),r) = 
+            let colorR = unsafePerformIO geraRandomico 
+                colorG = unsafePerformIO geraRandomico
+                colorB = unsafePerformIO geraRandomico
+            in printf "<circle cx=\"%f\" cy=\"%f\" r=\"%f\" fill=\"rgb(%d,%d,%d)\" />\n" x y r colorR colorG colorB
+
 
 
 -- Configura o viewBox da imagem e coloca retangulo branco no fundo
@@ -66,6 +79,57 @@ svgViewBox w h =
                 " version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n" ++
         printf "<rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" style=\"fill:white;\"/>\n" w h
 
-circleArea :: Circle -> Float
-circleArea (_,r) = pi*r^2
 
+
+geraPoints :: Float -> Float -> [Float] -> Float -> [Point]
+geraPoints _ _ [] _ = []
+geraPoints _ _ [v] _ = []
+geraPoints w h (x:xs) n = 
+    let a = 1 
+        t = n + 0.1
+        cX = verificaPonto (w + (a * t * (cos t))) 
+        cY = verificaPonto (h + (a * t * (sin t))) 
+    in (cX,cY) : (geraPoints cX cY xs t )
+    
+verificaPonto :: Float -> Float
+verificaPonto x
+    |x > 360 = x-360
+    |otherwise = x
+
+distpontos :: Point -> Point -> Float
+distpontos (x1,y1) (x2,y2) =
+    let dx = (x2-x1)^2
+        dy = (y2-y1)^2
+        dxy = dx + dy 
+    in sqrt dxy
+
+-- funcao que ordena uma lista decrescente
+ordena :: [Int] -> [Int]
+ordena [] = []
+ordena (a:x) = aux a (ordena x)
+                
+-- funcao auxiliar para ordenação
+aux :: Int -> [Int] -> [Int]
+aux a [] = [a]
+aux a (b:x)
+    | a >= b = a : (b:x)
+    | otherwise = b : aux a x
+
+geraRaio :: [Int] -> [Float]
+geraRaio x = map (*1.3) a
+        where
+        b = map (fromIntegral) (x)
+        a = map (sqrt) b
+
+geraRandomico :: IO Int
+geraRandomico = getStdRandom (randomR (0,255))
+
+-- recebe uma lista com raios e retorna uma lista de circulos
+insereRaios :: [Float] -> [Circle] 
+insereRaios [] = []
+insereRaios (x:xs) = ((fromIntegral imageWidth/2, fromIntegral imageHeight/2), x) : insereRaios xs
+
+inserePoints :: [Point] -> [Circle] -> [Circle]
+inserePoints [] _ = []
+inserePoints _ [] = []
+inserePoints ((x,y):xs) (((cx,cy),r):ys) = ((x,y),r) : inserePoints xs ys
